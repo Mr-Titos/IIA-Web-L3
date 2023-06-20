@@ -2,6 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const BDD = require('./bdd.js');
 const User = require('./modèles/user.js');
+const { DateTime } = require('mssql');
 const app = express();
 const port = 3000;
 
@@ -10,22 +11,17 @@ var REGIONS = [];
 var CLIENTS = [];
 
 async function synchroBDD() {
-    BDD.synchroUser()
-        .then(usrs => {USERS = usrs;})
-        .catch(err => { console.error(err);})
-        .finally(() => console.log("USERS synchronized"));
-    BDD.synchroRegion()
-        .then(reg => {REGIONS = reg;})
-        .catch(err => { console.error(err);})
-        .finally(() => console.log("REGIONS synchronized"));
-    BDD.synchroClient()
-        .then(cli => {CLIENTS = cli;})
-        .catch(err => { console.error(err);})
-        .finally(() => console.log("CLIENTS synchronized"));
-
-        Promise.all();
-
-    setTimeout(synchroBDD, 60_000 * 24);
+    Promise.all([BDD.synchroUser(), BDD.synchroRegion(), BDD.synchroClient()])
+        .then(values => {
+            USERS = values[0];
+            REGIONS = values[1];
+            CLIENTS = values[2];
+        })
+        .catch(error => console.error(error))
+        .finally(() => console.log("Cache updated"));
+    
+    // Reset cache toutes les 5 minutes
+    setTimeout(synchroBDD, 60_000 * 5);
 }
 
 synchroBDD();
@@ -35,7 +31,7 @@ app.use(express.json());
 
 function getToken() {
     // TODO
-    return 123456789;
+    return "123456789";
 }
 
 // Intercepteur a utiliser pour le token
@@ -49,11 +45,8 @@ function getToken() {
 app.post('/api/login', (req, res) => {
     const body = req.body;
     var msgError = "";
-    var pwd = body.password != undefined ? body.password : null;
-    var email = body.email != undefined ? body.email : null;
-    
-    console.log(USERS);
-    console.log(body);
+    var pwd = body.passwordLogin != undefined ? body.passwordLogin : null;
+    var email = body.emailLogin != undefined ? body.emailLogin : null;
 
     var isValid = true;
     var usr = USERS.find(u => u.email == email);
@@ -64,8 +57,11 @@ app.post('/api/login', (req, res) => {
         isValid = false;
         msgError = "Utilisateur introuvable."
     }
-
-    var token = isValid ? getToken() : "";
+    var token = "";
+    if (isValid) {
+        console.log(`Utilisateur ${usr.userName} connecté : ${Date.now().toLocaleString()}`);
+        token = getToken();
+    }
 
     // Faire une liste des ip authorisées via un fichier de conf externe.
     /*res.setHeader('Access-Control-Allow-Origin', `*`);
