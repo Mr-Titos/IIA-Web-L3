@@ -1,11 +1,11 @@
-const { DateTime } = require("mssql");
 class Commande {
     constructor() {
         this.id = "";
-        this.ca = null;
-        this.date = new DateTime();
-        this.idClient = "";
-        this.idRegion = "";
+        this.ca = 0;
+        this.date = "";
+        this.client = "";
+        this.region = "";
+        this.vendeur = "";
     }
 }
 module.exports = Commande;

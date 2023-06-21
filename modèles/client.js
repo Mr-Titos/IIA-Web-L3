@@ -1,9 +1,8 @@
 class Client {
-    constructor() {
+    constructor(id , nom) {
         this.id = "";
         this.nom = "";
         this.regions = [];
-        this.vendeur = "";
     }
 }
 module.exports = Client;

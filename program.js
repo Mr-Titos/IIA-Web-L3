@@ -1,26 +1,27 @@
 const express = require('express');
 const cors = require('cors');
 const BDD = require('./bdd.js');
-const User = require('./modèles/user.js');
-const { DateTime } = require('mssql');
+const logger = require('./logger.js');
 const app = express();
-const port = 3000;
+const port = 3001;
 
 var USERS = [];
-var REGIONS = [];
 var CLIENTS = [];
+var GRADES = [];
 
 async function synchroBDD() {
-    Promise.all([BDD.synchroUser(), BDD.synchroRegion(), BDD.synchroClient()])
-        .then(values => {
+    Promise.all([
+        // Only User & Grade are stored in cache as it will not cost too much memory
+        BDD.synchroUser(),
+        BDD.synchroGrade()
+    ]).then(values => {
             USERS = values[0];
-            REGIONS = values[1];
-            CLIENTS = values[2];
+            GRADES = values[1];
         })
         .catch(error => console.error(error))
-        .finally(() => console.log("Cache updated"));
-    
-    // Reset cache toutes les 5 minutes
+        .finally(() => logger(`Cache updated`));
+       
+    // Reset cache / 5 minutes
     setTimeout(synchroBDD, 60_000 * 5);
 }
 
@@ -34,12 +35,18 @@ function getToken() {
     return "123456789";
 }
 
-// Intercepteur a utiliser pour le token
-/*app.use((req, res, next) => {
-    express.json();
-    res.setHeader('Access-Control-Allow-Origin', '*');
-    next();
-})*/
+// Intercepteur de requête
+app.use((req, res, next) => {
+    /*if (req.url.split('/').at(2) == "client") {
+        res.statusCode = 401;
+        res.end();
+    }*/
+    logger(`Requête ${req.method} ${req.path.split('/').at(2)} ${res.statusCode} - ${"TODO : UTILISATEUR NOM"}`)
+    
+    if (res.statusCode != 401) {
+        next();
+    }
+})
 
 // Route LOGIN
 app.post('/api/login', (req, res) => {
@@ -57,27 +64,19 @@ app.post('/api/login', (req, res) => {
         isValid = false;
         msgError = "Utilisateur introuvable."
     }
-    var token = "";
-    if (isValid) {
-        console.log(`Utilisateur ${usr.userName} connecté : ${Date.now().toLocaleString()}`);
-        token = getToken();
-    }
-
-    // Faire une liste des ip authorisées via un fichier de conf externe.
-    /*res.setHeader('Access-Control-Allow-Origin', `*`);
-    res.setHeader('Access-Control-Allow-Methods', 'POST');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');*/
+    var token = isValid ? getToken() : "";
 
     res.statusCode = isValid ? 200 : 401;
     res.json({token: token, msgError: msgError});
 });
 
+// -----------------------------USER----------------------------
 // Route GET
 app.get('/api/user/:id', (req, res) => {
     var usr = USERS.find(x => x.id == req.params.id);
     usr != null ? res.json(usr) : res.sendStatus(204);
 });
-
+/*
 // Route POST
 app.post('/api/ressource', (req, res) => {
   const nouvelleRessource = req.body;
@@ -97,21 +96,54 @@ app.delete('/api/ressource/:id', (req, res) => {
   const resourceId = req.params.id;
   // Supprimer de la base de données
   res.sendStatus(204); // Réponse avec succès, pas de contenu à renvoyer
-});
+});*/
 
-// -----------------------------CLIENTS----------------------------
-// Route GET
-app.get('/api/client/:id', (req, res) => {
-    var result = CLIENTS.find(x => x.id == req.params.id);
-    result != null ? res.json(result) : res.sendStatus(204);
-});
-
+// ---------------------------CLIENTS----------------------------
 // Route GET
 app.get('/api/client/', (req, res) => {
-    var result = CLIENTS;
-    result.length > 0 ? res.json(result) : res.sendStatus(204);
+    const filters = req.query.filters;
+    BDD.GET(req.path.split('/').at(2), filters).then(result => {
+        result.length > 0 ? res.json(result) : res.sendStatus(204)
+    }).catch(err => {
+        res.status(500).json(err.message);
+        console.error(err);
+    })
 });
 
+// ---------------------------COMMANDE----------------------------
+app.get('/api/commande/', (req, res) => {
+    const filters = req.query.filters;
+    BDD.GET(req.path.split('/').at(2), filters).then(result => {
+        result.length > 0 ? res.json(result) : res.sendStatus(204)
+    }).catch(err => {
+        res.status(500).json(err.message);
+        console.error(err);
+    })
+});
+
+// ---------------------------VENDEUR----------------------------
+app.get('/api/vendeur/', (req, res) => {
+    const filters = req.query.filters;
+    BDD.GET(req.path.split('/').at(2), filters).then(result => {
+        result.length > 0 ? res.json(result) : res.sendStatus(204)
+    }).catch(err => {
+        res.status(500).json(err.message);
+        console.error(err);
+    })
+});
+
+// ---------------------------REGION----------------------------
+app.get('/api/region/', (req, res) => {
+    const filters = req.query.filters;
+    BDD.GET(req.path.split('/').at(2), filters).then(result => {
+        result.length > 0 ? res.json(result) : res.sendStatus(204)
+    }).catch(err => {
+        res.status(500).json(err.message);
+        console.error(err);
+    })
+});
+
+
 app.listen(port, () => {
-  console.log(`Serveur démarré sur le port ${port}`);
+  logger(`Serveur démarré sur le port ${port}`);
 });
