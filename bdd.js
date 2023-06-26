@@ -1,10 +1,5 @@
-//const server = "LVL3Q9D4BB3MTJ";
-const server = "localhost";
-const database = "IIA_WEBPROJECT";
-const userName = "IIA";
-const password = "JojoArt2023!!";
-const encrypt = true;
 const sql = require('mssql');
+const {userNameSQL, passwordSQL, databaseSQL, serverSQL, encryptSQL} = require('./config');
 const User = require('./modèles/user');
 const Region = require('./modèles/region');
 const Client = require('./modèles/client');
@@ -16,21 +11,22 @@ module.exports = {
     synchroUser : synchroUser,
     synchroGrade : synchroGrade,
     synchroCommandsGrouped : synchroCommandsGrouped,
-    GET : get
+    GET : get,
+    updateUser : updateUser
   };
 
 const sqlConfig = {
-    user: userName,
-    password: password,
-    database: database,
-    server: server,
+    user: userNameSQL,
+    password: passwordSQL,
+    database: databaseSQL,
+    server: serverSQL,
     pool: {
       max: 10,
       min: 0,
       idleTimeoutMillis: 30000
     },
     options: {
-      encrypt: encrypt,
+      encrypt: encryptSQL,
       trustServerCertificate: true // change to true for local dev / self-signed certs
     }
 }
@@ -48,6 +44,8 @@ async function synchroUser() {
                 newUser.password = usr.PasswordUser;
                 newUser.email = usr.EmailUser;
                 newUser.grade = await getGradeNameByID(usr.GradeUser);
+                newUser.token = usr.Token;
+                newUser.tokenPwd = usr.TokenPwd;
                 users.push(newUser);
             });
             resolve(users);
@@ -62,9 +60,9 @@ async function synchroCommandsGrouped() {
         try {
             await sql.connect(sqlConfig);
             const result = await sql.query`
-            SELECT DATECom, CLIECom, REGICom, VENDCom ,SUM(CA) AS TotalCA
+            SELECT CLIECom, REGICom, VENDCom , SUM(CA) AS TotalCA
             FROM COMMANDE c
-            GROUP BY DATECom, CLIECom, REGICom, VENDCom
+            GROUP BY CLIECom, REGICom, VENDCom
             HAVING COUNT(*) > 1`;
             await createObjectToSend("commande", result).then(res => resolve(res));
         } catch (err) {
@@ -116,13 +114,11 @@ async function get(endpoint, filters) {
     
                 if (endpoint.toUpperCase() == "COMMANDE") {
                     // Greater than
-                    if ((filters.dateDebut &&filters.dateDebut != '' && filters.dateFin && filters.dateFin == '') 
-                    || (filters.dateDebut && filters.dateDebut != '' && filters.dateFin && filters.dateFin != '')) {
+                    if (filters.dateDebut && filters.dateDebut != '') {
                         query += `AND DATECom >= CONVERT(date, '${filters.dateDebut}', 120) `;
                     } 
                     // Lesser than
-                    else if (filters.dateDebut && filters.dateDebut == '' && filters.dateFin && filters.dateFin != ''
-                    || (filters.dateDebut && filters.dateDebut != '' && filters.dateFin && filters.dateFin != '')) {
+                    if (filters.dateFin && filters.dateFin != '') {
                         query += `AND DATECom <= CONVERT(date, '${filters.dateFin}', 120) `
                     }
                 }
@@ -130,7 +126,7 @@ async function get(endpoint, filters) {
             
             //console.log(query)
             const queryResult = await sql.query(query);
-            createObjectToSend(endpoint, queryResult).then(res => resolve(res));
+            createObjectToSend(endpoint, queryResult).then(res => resolve(res)).catch(err => reject(err));
         } catch (err) {
             reject(err);
         }
@@ -141,19 +137,19 @@ function createObjectToSend(endpoint, queryResult) {
     return new Promise((res,rej) => {
         switch(endpoint.toUpperCase()) {
             case "COMMANDE":
-                constructCommande(queryResult.recordset).then(resp => res(resp));
+                constructCommande(queryResult.recordset).then(resp => res(resp)).catch(e => rej(e));
                 break;
             case "CLIENT":
-                constructClients(queryResult.recordset).then(resp => res(resp));
+                constructClients(queryResult.recordset).then(resp => res(resp)).catch(e => rej(e));
                 break;
             case "VENDEUR":
-                constructVendeur(queryResult.recordset).then(resp => res(resp));
+                constructVendeur(queryResult.recordset).then(resp => res(resp)).catch(e => rej(e));
                 break;
             case "REGION":
-                constructRegion(queryResult.recordset).then(resp => res(resp));
+                constructRegion(queryResult.recordset).then(resp => res(resp)).catch(e => rej(e));
                 break;
             default:
-                reject("EndPoint not recognized");
+                rej("EndPoint not recognized");
         }
     })
 }
@@ -239,15 +235,22 @@ async function constructCommande(commandeData) {
                 vENDComsID.add(commandeData[i].VENDCom);
             }
 
-            var rEGIComs = await getRegions(Array.from(rEGIComsID));
-            var cLIEComs = await getClients(Array.from(cLIEComsID));
-            var vENDComs = await getVendeurs(Array.from(vENDComsID));
+            var rEGIComs;
+            var cLIEComs;
+            var vENDComs;
 
+            if (commandeData.length > 0) {
+                rEGIComs = await getRegions(Array.from(rEGIComsID));
+                cLIEComs = await getClients(Array.from(cLIEComsID));
+                vENDComs = await getVendeurs(Array.from(vENDComsID));
+            }
+
+            //console.log(commandeData);
             for(let i = 0; i < commandeData.length; i++) {
                 var newCom = new Commande();
                 newCom.id = commandeData[i].IDCom != undefined ? commandeData[i].IDCom : "N/A";
                 newCom.ca = commandeData[i].CA != undefined ? commandeData[i].CA : commandeData[i].TotalCA;
-                newCom.date = commandeData[i].DATECom;
+                newCom.date = commandeData[i].DATECom != undefined ? commandeData[i].DATECom : "N/A";
                 newCom.client = cLIEComs.find(x => x.IDCli == commandeData[i].CLIECom);
                 newCom.region = rEGIComs.find(x => x.IDReg == commandeData[i].REGICom);
                 newCom.vendeur = vENDComs.find(x => x.IDVend == commandeData[i].VENDCom)
@@ -267,7 +270,7 @@ async function constructRegion(regionData) {
             var region = [];
             for(let i = 0; i < regionData.length; i++) {
                 var newReg = new Region();
-                newReg.id= regionData[i].IDReg;
+                newReg.id = regionData[i].IDReg;
                 newReg.libe = regionData[i].LIBEReg;
                 region.push(newReg);
             }
@@ -354,42 +357,13 @@ async function getGradeNameByID(idGrade) {
     return result.recordset.at(0).LibGrade;
 }
 
-async function getRegionByID(idRegion) {
-    const result = await sql.query`SELECT *
-        FROM [dbo].[REGION] r
-        WHERE r.IDReg = ${idRegion}`;
-    var newR = result.recordset.at(0);
-    return new Region(newR.ID, newR.LIBE);
-}
-
-async function getClientByID(idClient) {
-    return new Promise(async (resolve, reject) => {
-        try {
-            const result = await sql.query`SELECT *
-            FROM [dbo].[CLIENT] c
-            WHERE c.IDCli = ${idClient}`;
-            var newCli = result.recordset;
-            constructClients(newCli).then(res => {
-                resolve(res);
-            }).catch(err => reject(err));
-        } catch(err) {
-            reject(err);
-        }
-    })
-}
-
-async function getVendeurByID(idVendeur) {
-    return new Promise(async (resolve, reject) => {
-        try {
-            const result = await sql.query`SELECT *
-            FROM [dbo].[VENDEUR] v
-            WHERE v.IDVend = ${idVendeur}`;
-            var newV = result.recordset;
-            constructVendeur(newV).then(res => {
-                resolve(res);
-            }).catch(err => reject(err));
-        } catch(err) {
-            reject(err);
-        }
-    })
+async function updateUser(user) {
+    const result = await sql.query`UPDATE [IIA_WEBPROJECT].[dbo].[USER]
+    SET [Token] = ${user.token},
+    [NameUser] = ${user.userName},
+    [EmailUser] = ${user.email},
+    [PasswordUser] = ${user.password},
+    [TokenPwd] = ${user.tokenPwd}
+    WHERE [IdUser] = ${user.id};`;
+    return result.rowsAffected == 1;
 }

@@ -5,6 +5,8 @@ class User {
         this.password = "";
         this.email = "";
         this.grade = "";
+        this.token = "";
+        this.tokenPwd = "";
     }
 }
 module.exports = User;

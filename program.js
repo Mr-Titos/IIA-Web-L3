@@ -1,24 +1,34 @@
 const express = require('express');
 const cors = require('cors');
-const BDD = require('./bdd.js');
-const logger = require('./logger.js');
-const app = express();
-const port = 3001;
 
+const {serverPort} = require('./config.js');
+const BDD = require('./bdd.js');
+const TOKEN = require('./token.js');
+const LOGGER = require('./logger.js');
+const MAILER = require('./mailer.js');
+const app = express();
+
+const endpointsNoLogin = [
+    "login",
+    "disconnect",
+    "resetpassword",
+    "emailpassword",
+    "tokenpassword"
+]
 var USERS = [];
 var COMMANDESGRP = [];
 
 async function synchroBDD() {
     Promise.all([
-        // Only User & Grade are stored in cache as it will not cost too much memory
+        // Only some data is stored in cache as it will cost too much memory
         BDD.synchroUser(),
         BDD.synchroCommandsGrouped()
     ]).then(values => {
             USERS = values[0];
-            COMMANDESGRP = values[2];
+            COMMANDESGRP = values[1];
         })
         .catch(error => console.error(error))
-        .finally(() => logger(`Cache updated`));
+        .finally(() => LOGGER(`Cache updated`));
        
     // Reset cache / 5 minutes
     setTimeout(synchroBDD, 60_000 * 5);
@@ -26,21 +36,44 @@ async function synchroBDD() {
 
 synchroBDD();
 
+function isAuth(token) {
+    try {
+        const tokenValid = TOKEN.verifyToken(token);
+        return tokenValid;
+    } catch(err) {
+         // Remove token from cache/db
+         var usr = USERS.find(x => x.token == token);
+         if (usr != undefined) {
+             usr.token = "";
+             BDD.updateUser(usr).then(() => LOGGER(`USER ${usr.userName}'s token has been purged`));
+         }
+    }
+}
+
+function generateTokenPwd(user) {
+    user.tokenPwd = TOKEN.createToken(user.email);
+    BDD.updateUser(user);
+    return user.tokenPwd;
+}
+
 app.use(cors());
 app.use(express.json());
 
-function getToken() {
-    // TODO
-    return "123456789";
-}
-
 // Intercepteur de requête
 app.use((req, res, next) => {
-    /*if (req.url.split('/').at(2) == "client") {
-        res.statusCode = 401;
-        res.end();
-    }*/
-    logger(`Requête ${req.method} ${req.path.split('/').at(2)} - ${"TODO : UTILISATEUR NOM"}`)
+    if (!endpointsNoLogin.includes(req.path.split('/').at(2))) {
+        var token = req.headers.authorization == undefined ? "" 
+        : req.headers.authorization.split(' ')[1];
+        if (!isAuth(token)) {
+            res.sendStatus(403);
+            res.end();
+            return;
+        }
+    }
+
+    const usr = USERS.find(x => x.token == token);
+    const msgName = usr != undefined ? `- ${usr.userName} (${usr.id})` : ""
+    LOGGER(`Requête ${req.method} ${req.path.split('/').at(2)} ${msgName}`)
     next();
 })
 
@@ -55,15 +88,38 @@ app.post('/api/login', (req, res) => {
     var usr = USERS.find(u => u.email == email);
     if (usr != null) {
         isValid = pwd == usr.password;
-        msgError = isValid ? "" : "Mot de passe incorrect.";
+        if (!isValid) {
+            msgError = "Mot de passe incorrect.";
+        }
     } else {
         isValid = false;
         msgError = "Utilisateur introuvable."
     }
-    var token = isValid ? getToken() : "";
+    usr.token = isValid ? TOKEN.createToken(usr) : "";
+    BDD.updateUser(usr).then();
 
     res.statusCode = isValid ? 200 : 401;
-    res.json({token: token, msgError: msgError});
+    res.json(
+        {user: {
+            userName : isValid ? usr.userName : "",
+            email : isValid ? usr.email : "",
+            grade : isValid ? usr.grade : "",
+            token : usr.token
+        },
+        msgError: msgError});
+});
+
+app.post('/api/disconnect', (req, res) => {
+    var token = req.headers.authorization;
+    token = token != undefined ? token.split(' ')[1] : "";
+    var usr = USERS.find(x => x.token == token);
+    if (usr != undefined) {
+        usr.token = "";
+        BDD.updateUser(usr).then(() => LOGGER(`USER ${usr.userName}'s token has been purged`));
+        res.sendStatus(200);
+    } else {
+        res.sendStatus(500);
+    }
 });
 
 // -----------------------------USER----------------------------
@@ -72,27 +128,55 @@ app.get('/api/user/:id', (req, res) => {
     var usr = USERS.find(x => x.id == req.params.id);
     usr != null ? res.json(usr) : res.sendStatus(204);
 });
-/*
-// Route POST
-app.post('/api/ressource', (req, res) => {
-  const nouvelleRessource = req.body;
-  // Enregistrement dans une base de données
-  res.status(201).json(nouvelleRessource);
-});
 
 // Route PUT
-app.put('/api/ressource/:id', (req, res) => {
-  const resourceId = req.params.id;
-  // Logique pour mettre à jour la ressource avec l'ID donné
-  res.sendStatus(204); // Réponse avec succès, pas de contenu à renvoyer
+app.put('/api/user/', (req, res) => {
+    const tokenUser = TOKEN.getDecodedToken(req.headers.authorization.split(' ')[1])
+    var user = USERS.find(x => x.id == tokenUser.id);
+    if (req.body.oldPwd == user.password) {
+        user.password = req.body.newPwd != undefined && req.body.newPwd != "" 
+        ? req.body.newPwd : req.body.oldPwd;
+        user.userName = req.body.userName != undefined && req.body.userName != "" 
+        ? req.body.userName : user.userName;
+        BDD.updateUser(user);
+        res.sendStatus(204);
+    } else {
+        res.sendStatus(403);
+    }
 });
 
-// Route DELETE
-app.delete('/api/ressource/:id', (req, res) => {
-  const resourceId = req.params.id;
-  // Supprimer de la base de données
-  res.sendStatus(204); // Réponse avec succès, pas de contenu à renvoyer
-});*/
+// ---------------------------PASSWORD----------------------------
+app.get('/api/emailpassword/', (req, res) => {
+    const email = req.query.email
+    var usr = USERS.find(x => x.email == email);
+    if (usr != null) {
+        MAILER.sendResetPasswordMail(usr.email, generateTokenPwd(usr));
+        res.sendStatus(204)
+    } else {
+        res.sendStatus(403)
+    }
+});
+
+app.get('/api/tokenpassword/', (req, res) => {
+    const tokenPwd = req.query.tokenPwd
+    var usr = USERS.find(x => x.tokenPwd == tokenPwd);
+    usr != null ? res.sendStatus(204) : res.sendStatus(403);
+});
+
+app.put('/api/resetpassword/', (req, res) => {
+    const tokenPwd = req.body.tokenPwd;
+    const newPassword = req.body.newPwd;
+    var usr = USERS.find(x => x.tokenPwd == tokenPwd);
+    if (usr != null && (newPassword != null && newPassword != '')) {
+        usr.password = newPassword;
+        usr.tokenPwd = "";
+        BDD.updateUser(usr).then(() => {
+            res.sendStatus(204);
+        });
+    } else {
+        res.sendStatus(403)
+    }
+});
 
 // ---------------------------CLIENTS----------------------------
 app.get('/api/client/', (req, res) => {
@@ -108,27 +192,27 @@ app.get('/api/client/', (req, res) => {
 // ---------------------------COMMANDE----------------------------
 app.get('/api/commande/', (req, res) => {
     const filters = req.query.filters;
-    const isGrouped = req.query.group;
+    const isGrouped = req.query.grouped;
     if (isGrouped == "true") {
         var resultGrouped = COMMANDESGRP;
-        if (filters.vendeur != undefined)
-            resultGrouped = resultGrouped.filter(x => x.vendeur.NOMVend.includes(filters.vendeur));
-        if (filters.region != undefined)
-            resultGrouped = resultGrouped.filter(x => x.region.LIBEReg.includes(filters.region));
-        if (filters.client != undefined)
-            resultGrouped = resultGrouped.filter(x => x.client.NOMCli.includes(filters.client));
-        if (filters.dateDebut != undefined)
-            resultGrouped = resultGrouped.filter(x => x.date >= new Date(filters.dateDebut));
-        if (filters.dateFin != undefined)
-            resultGrouped = resultGrouped.filter(x => x.date <= new Date(filters.dateFin));
 
+        if (filters.vendeur != undefined && filters.vendeur != '')
+            resultGrouped = resultGrouped.filter(x => 
+                x.vendeur.NOMVend.toLowerCase().includes(filters.vendeur.toLowerCase()));
+        if (filters.region != undefined && filters.region != '')
+            resultGrouped = resultGrouped.filter(x => 
+                x.region.LIBEReg.toLowerCase().includes(filters.region.toLowerCase()));
+        if (filters.client != undefined && filters.client != '')
+            resultGrouped = resultGrouped.filter(x => 
+                x.client.NOMCli.toLowerCase().includes(filters.client.toLowerCase()));
+        
         resultGrouped.length > 0 ? res.json(resultGrouped) : res.sendStatus(204)
     } else {
         BDD.GET(req.path.split('/').at(2), filters).then(result => {
             result.length > 0 ? res.json(result) : res.sendStatus(204)
         }).catch(err => {
             res.status(500).json(err.message);
-            console.error(err);
+            //console.error(err);
         })
     }
 });
@@ -156,6 +240,6 @@ app.get('/api/region/', (req, res) => {
 });
 
 
-app.listen(port, () => {
-  logger(`Serveur démarré sur le port ${port}`);
+app.listen(serverPort, () => {
+  LOGGER(`Serveur démarré sur le port ${serverPort}`);
 });
