@@ -1,7 +1,8 @@
-const server = "LVL3Q9D4BB3MTJ";
+//const server = "LVL3Q9D4BB3MTJ";
+const server = "localhost";
 const database = "IIA_WEBPROJECT";
 const userName = "IIA";
-const password = "JoJoArt2023!!";
+const password = "JojoArt2023!!";
 const encrypt = true;
 const sql = require('mssql');
 const User = require('./modèles/user');
@@ -14,6 +15,7 @@ const Commande = require('./modèles/commande');
 module.exports = {
     synchroUser : synchroUser,
     synchroGrade : synchroGrade,
+    synchroCommandsGrouped : synchroCommandsGrouped,
     GET : get
   };
 
@@ -49,6 +51,22 @@ async function synchroUser() {
                 users.push(newUser);
             });
             resolve(users);
+        } catch (err) {
+            reject(err);
+        }
+    });
+}
+
+async function synchroCommandsGrouped() {
+    return new Promise(async (resolve, reject) => {
+        try {
+            await sql.connect(sqlConfig);
+            const result = await sql.query`
+            SELECT DATECom, CLIECom, REGICom, VENDCom ,SUM(CA) AS TotalCA
+            FROM COMMANDE c
+            GROUP BY DATECom, CLIECom, REGICom, VENDCom
+            HAVING COUNT(*) > 1`;
+            await createObjectToSend("commande", result).then(res => resolve(res));
         } catch (err) {
             reject(err);
         }
@@ -112,25 +130,32 @@ async function get(endpoint, filters) {
             
             //console.log(query)
             const queryResult = await sql.query(query);
-
-            switch(endpoint.toUpperCase()) {
-                case "COMMANDE":
-                    await constructCommande(queryResult.recordset).then(res => resolve(res));
-                    break;
-                case "CLIENT":
-                    await constructClients(queryResult.recordset).then(res => resolve(res));
-                    break;
-                case "VENDEUR":
-                    await constructVendeur(queryResult.recordset).then(res => resolve(res));
-                    break;
-                case "REGION":
-                    await constructRegion(queryResult.recordset).then(res => resolve(res));
-                    break;
-            }
+            createObjectToSend(endpoint, queryResult).then(res => resolve(res));
         } catch (err) {
             reject(err);
         }
     });
+}
+
+function createObjectToSend(endpoint, queryResult) {
+    return new Promise((res,rej) => {
+        switch(endpoint.toUpperCase()) {
+            case "COMMANDE":
+                constructCommande(queryResult.recordset).then(resp => res(resp));
+                break;
+            case "CLIENT":
+                constructClients(queryResult.recordset).then(resp => res(resp));
+                break;
+            case "VENDEUR":
+                constructVendeur(queryResult.recordset).then(resp => res(resp));
+                break;
+            case "REGION":
+                constructRegion(queryResult.recordset).then(resp => res(resp));
+                break;
+            default:
+                reject("EndPoint not recognized");
+        }
+    })
 }
 
 function constructJoinCommande(filters) {
@@ -213,16 +238,19 @@ async function constructCommande(commandeData) {
                 rEGIComsID.add(commandeData[i].REGICom);
                 vENDComsID.add(commandeData[i].VENDCom);
             }
-            //console.log(rEGIComsID.)
+
             var rEGIComs = await getRegions(Array.from(rEGIComsID));
+            var cLIEComs = await getClients(Array.from(cLIEComsID));
+            var vENDComs = await getVendeurs(Array.from(vENDComsID));
+
             for(let i = 0; i < commandeData.length; i++) {
                 var newCom = new Commande();
-                newCom.id = commandeData[i].IDCom;
-                newCom.ca = commandeData[i].CA;
+                newCom.id = commandeData[i].IDCom != undefined ? commandeData[i].IDCom : "N/A";
+                newCom.ca = commandeData[i].CA != undefined ? commandeData[i].CA : commandeData[i].TotalCA;
                 newCom.date = commandeData[i].DATECom;
-                await getClientByID(commandeData[i].CLIECom).then(cli => newCom.client = cli);
-                newCom.region = await getRegionByID(commandeData[i].REGICom);
-                await getVendeurByID(commandeData[i].VENDCom).then(ven => newCom.vendeur = ven);
+                newCom.client = cLIEComs.find(x => x.IDCli == commandeData[i].CLIECom);
+                newCom.region = rEGIComs.find(x => x.IDReg == commandeData[i].REGICom);
+                newCom.vendeur = vENDComs.find(x => x.IDVend == commandeData[i].VENDCom)
                 commandes.push(newCom);
             }
 
@@ -270,18 +298,44 @@ async function synchroGrade() {
 }
 
 async function getRegions(listIds) {
-    console.log(listIds);
-    // TODO Optimiser le chargement via une seule requête qui charge en mémoire toute
-    // les régions / vendeurs / clients utile pour la commande.
     var stringIDs = "";
-    for(var i = 0; i < listIds.size; i++) {
+    for(var i = 0; i < listIds.length; i++) {
         stringIDs += listIds[i] + ','
     }
-    console.log(stringIDs.substring(0, stringIDs.length - 1))
-    const result = await sql.query`SELECT *
+    stringIDs = '(' + stringIDs.substring(0, stringIDs.length - 1) + ')';
+    
+    var query1 = `SELECT *
     FROM [IIA_WEBPROJECT].[dbo].[REGION] r
-    WHERE IDReg IN (${stringIDs.substring(0, stringIDs.length - 1)})`;
-    console.log(result.recordset);
+    WHERE IDReg IN ${stringIDs}`;
+    const result = await sql.query(query1);
+    return result.recordset;
+}
+
+async function getClients(listIds) {
+    var stringIDs = "";
+    for(var i = 0; i < listIds.length; i++) {
+        stringIDs += listIds[i] + ','
+    }
+    stringIDs = '(' + stringIDs.substring(0, stringIDs.length - 1) + ')';
+    
+    var query1 = `SELECT *
+    FROM [IIA_WEBPROJECT].[dbo].[CLIENT]
+    WHERE IDCli IN ${stringIDs}`;
+    const result = await sql.query(query1);
+    return result.recordset;
+}
+
+async function getVendeurs(listIds) {
+    var stringIDs = "";
+    for(var i = 0; i < listIds.length; i++) {
+        stringIDs += listIds[i] + ','
+    }
+    stringIDs = '(' + stringIDs.substring(0, stringIDs.length - 1) + ')';
+    
+    var query1 = `SELECT *
+    FROM [IIA_WEBPROJECT].[dbo].[VENDEUR]
+    WHERE IDVend IN ${stringIDs}`;
+    const result = await sql.query(query1);
     return result.recordset;
 }
 

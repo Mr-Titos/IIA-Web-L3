@@ -6,17 +6,16 @@ const app = express();
 const port = 3001;
 
 var USERS = [];
-var CLIENTS = [];
-var GRADES = [];
+var COMMANDESGRP = [];
 
 async function synchroBDD() {
     Promise.all([
         // Only User & Grade are stored in cache as it will not cost too much memory
         BDD.synchroUser(),
-        BDD.synchroGrade()
+        BDD.synchroCommandsGrouped()
     ]).then(values => {
             USERS = values[0];
-            GRADES = values[1];
+            COMMANDESGRP = values[2];
         })
         .catch(error => console.error(error))
         .finally(() => logger(`Cache updated`));
@@ -41,11 +40,8 @@ app.use((req, res, next) => {
         res.statusCode = 401;
         res.end();
     }*/
-    logger(`Requête ${req.method} ${req.path.split('/').at(2)} ${res.statusCode} - ${"TODO : UTILISATEUR NOM"}`)
-    
-    if (res.statusCode != 401) {
-        next();
-    }
+    logger(`Requête ${req.method} ${req.path.split('/').at(2)} - ${"TODO : UTILISATEUR NOM"}`)
+    next();
 })
 
 // Route LOGIN
@@ -99,7 +95,6 @@ app.delete('/api/ressource/:id', (req, res) => {
 });*/
 
 // ---------------------------CLIENTS----------------------------
-// Route GET
 app.get('/api/client/', (req, res) => {
     const filters = req.query.filters;
     BDD.GET(req.path.split('/').at(2), filters).then(result => {
@@ -113,12 +108,29 @@ app.get('/api/client/', (req, res) => {
 // ---------------------------COMMANDE----------------------------
 app.get('/api/commande/', (req, res) => {
     const filters = req.query.filters;
-    BDD.GET(req.path.split('/').at(2), filters).then(result => {
-        result.length > 0 ? res.json(result) : res.sendStatus(204)
-    }).catch(err => {
-        res.status(500).json(err.message);
-        console.error(err);
-    })
+    const isGrouped = req.query.group;
+    if (isGrouped == "true") {
+        var resultGrouped = COMMANDESGRP;
+        if (filters.vendeur != undefined)
+            resultGrouped = resultGrouped.filter(x => x.vendeur.NOMVend.includes(filters.vendeur));
+        if (filters.region != undefined)
+            resultGrouped = resultGrouped.filter(x => x.region.LIBEReg.includes(filters.region));
+        if (filters.client != undefined)
+            resultGrouped = resultGrouped.filter(x => x.client.NOMCli.includes(filters.client));
+        if (filters.dateDebut != undefined)
+            resultGrouped = resultGrouped.filter(x => x.date >= new Date(filters.dateDebut));
+        if (filters.dateFin != undefined)
+            resultGrouped = resultGrouped.filter(x => x.date <= new Date(filters.dateFin));
+
+        resultGrouped.length > 0 ? res.json(resultGrouped) : res.sendStatus(204)
+    } else {
+        BDD.GET(req.path.split('/').at(2), filters).then(result => {
+            result.length > 0 ? res.json(result) : res.sendStatus(204)
+        }).catch(err => {
+            res.status(500).json(err.message);
+            console.error(err);
+        })
+    }
 });
 
 // ---------------------------VENDEUR----------------------------
