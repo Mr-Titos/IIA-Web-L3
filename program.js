@@ -1,5 +1,6 @@
 const express = require('express');
 const cors = require('cors');
+const bcrypt = require('bcrypt');
 
 const {serverPort} = require('./config.js');
 const BDD = require('./bdd.js');
@@ -39,21 +40,25 @@ synchroBDD();
 function isAuth(token) {
     try {
         const tokenValid = TOKEN.verifyToken(token);
-        return tokenValid;
+        return tokenValid && USERS.find(x => x.token == token) != undefined;
     } catch(err) {
          // Remove token from cache/db
          var usr = USERS.find(x => x.token == token);
          if (usr != undefined) {
              usr.token = "";
-             BDD.updateUser(usr).then(() => LOGGER(`USER ${usr.userName}'s token has been purged`));
+             BDD.updateUser(usr, false).then(() => LOGGER(`USER ${usr.userName}'s token has been purged`));
          }
     }
 }
 
 function generateTokenPwd(user) {
     user.tokenPwd = TOKEN.createToken(user.email);
-    BDD.updateUser(user);
+    BDD.updateUser(user, false);
     return user.tokenPwd;
+}
+
+function checkPasswordUser(password, hashedPassword) {
+    return bcrypt.compareSync(password, hashedPassword);
 }
 
 app.use(cors());
@@ -61,9 +66,10 @@ app.use(express.json());
 
 // Intercepteur de requête
 app.use((req, res, next) => {
+    var token = req.headers.authorization == undefined ? "" 
+    : req.headers.authorization.split(' ')[1];
+
     if (!endpointsNoLogin.includes(req.path.split('/').at(2))) {
-        var token = req.headers.authorization == undefined ? "" 
-        : req.headers.authorization.split(' ')[1];
         if (!isAuth(token)) {
             res.sendStatus(403);
             res.end();
@@ -71,9 +77,9 @@ app.use((req, res, next) => {
         }
     }
 
-    const usr = USERS.find(x => x.token == token);
-    const msgName = usr != undefined ? `- ${usr.userName} (${usr.id})` : ""
-    LOGGER(`Requête ${req.method} ${req.path.split('/').at(2)} ${msgName}`)
+    const usr = USERS.find(x => x.token == token && token);
+    const msgName = usr != undefined ? `: ${usr.userName} (${usr.id})` : ""
+    LOGGER(`Requête ${req.method} ${req.path.split('/').at(2)} ${msgName} : ${req.ip}`)
     next();
 })
 
@@ -87,7 +93,7 @@ app.post('/api/login', (req, res) => {
     var isValid = true;
     var usr = USERS.find(u => u.email == email);
     if (usr != null) {
-        isValid = pwd == usr.password;
+       isValid = checkPasswordUser(pwd, usr.password);
         if (!isValid) {
             msgError = "Mot de passe incorrect.";
         }
@@ -96,7 +102,8 @@ app.post('/api/login', (req, res) => {
         msgError = "Utilisateur introuvable."
     }
     usr.token = isValid ? TOKEN.createToken(usr) : "";
-    BDD.updateUser(usr).then();
+    if (isValid)
+        BDD.updateUser(usr, false);
 
     res.statusCode = isValid ? 200 : 401;
     res.json(
@@ -115,7 +122,7 @@ app.post('/api/disconnect', (req, res) => {
     var usr = USERS.find(x => x.token == token);
     if (usr != undefined) {
         usr.token = "";
-        BDD.updateUser(usr).then(() => LOGGER(`USER ${usr.userName}'s token has been purged`));
+        BDD.updateUser(usr, false).then(() => LOGGER(`USER ${usr.userName}'s token has been purged`));
         res.sendStatus(200);
     } else {
         res.sendStatus(500);
@@ -133,12 +140,17 @@ app.get('/api/user/:id', (req, res) => {
 app.put('/api/user/', (req, res) => {
     const tokenUser = TOKEN.getDecodedToken(req.headers.authorization.split(' ')[1])
     var user = USERS.find(x => x.id == tokenUser.id);
-    if (req.body.oldPwd == user.password) {
-        user.password = req.body.newPwd != undefined && req.body.newPwd != "" 
-        ? req.body.newPwd : req.body.oldPwd;
+    const oldHashedPwd = user.password;
+    if (checkPasswordUser(req.body.oldPwd, oldHashedPwd)) {
+        const updatePwd = req.body.newPwd != undefined && req.body.newPwd != "" && req.body.newPwd != req.body.oldPwd;
+        user.password = updatePwd ? req.body.newPwd : oldHashedPwd;
+
         user.userName = req.body.userName != undefined && req.body.userName != "" 
         ? req.body.userName : user.userName;
-        BDD.updateUser(user);
+        
+        user.token = updatePwd ? "" : user.token;
+
+        BDD.updateUser(user, updatePwd);
         res.sendStatus(204);
     } else {
         res.sendStatus(403);

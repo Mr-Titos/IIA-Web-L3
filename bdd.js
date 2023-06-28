@@ -1,5 +1,7 @@
 const sql = require('mssql');
-const {userNameSQL, passwordSQL, databaseSQL, serverSQL, encryptSQL} = require('./config');
+const bcrypt = require('bcrypt');
+
+const {userNameSQL, passwordSQL, databaseSQL, serverSQL, encryptSQL, saltRounds} = require('./config');
 const User = require('./modèles/user');
 const Region = require('./modèles/region');
 const Client = require('./modèles/client');
@@ -357,13 +359,23 @@ async function getGradeNameByID(idGrade) {
     return result.recordset.at(0).LibGrade;
 }
 
-async function updateUser(user) {
-    const result = await sql.query`UPDATE [IIA_WEBPROJECT].[dbo].[USER]
-    SET [Token] = ${user.token},
-    [NameUser] = ${user.userName},
-    [EmailUser] = ${user.email},
-    [PasswordUser] = ${user.password},
-    [TokenPwd] = ${user.tokenPwd}
-    WHERE [IdUser] = ${user.id};`;
-    return result.rowsAffected == 1;
+function updateUser(user, updatePwd) {
+    const hashedPwd = updatePwd ? hashPassword(user.password) : "";
+
+    if (updatePwd)
+        user.password = hashedPwd;
+    
+    const query = `UPDATE [IIA_WEBPROJECT].[dbo].[USER]
+    SET [Token] = '${user.token}',
+    [NameUser] = '${user.userName}',
+    [EmailUser] = '${user.email}',
+    [TokenPwd] = '${user.tokenPwd}'
+    ${updatePwd ? `,[PasswordUser] = '${hashedPwd}'` : ``}
+    WHERE [IdUser] = '${user.id}';`
+
+    sql.query(query)
+}
+
+function hashPassword(password) {
+        return bcrypt.hashSync(password, bcrypt.genSaltSync(saltRounds))
 }
