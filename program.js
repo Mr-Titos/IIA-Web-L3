@@ -46,7 +46,8 @@ function isAuth(token) {
          let usr = USERS.find(x => x.token == token);
          if (usr != undefined) {
              usr.token = "";
-             BDD.updateUser(usr, false).then(() => LOGGER(`USER ${usr.userName}'s token has been purged`));
+             BDD.updateUser(usr, false);
+             LOGGER(`USER ${usr.userName}'s token has been purged`);
          }
     }
 }
@@ -59,6 +60,17 @@ function generateTokenPwd(user) {
 
 function checkPasswordUser(password, hashedPassword) {
     return bcrypt.compareSync(password, hashedPassword);
+}
+
+function filterCommandsGrouped(filters) {
+    let resultGrouped = COMMANDESGRP;
+    if (filters.vendeur != undefined && filters.vendeur != '')
+        resultGrouped = resultGrouped.filter(x => x.vendeur.NOMVend.toLowerCase().includes(filters.vendeur.toLowerCase()));
+    if (filters.region != undefined && filters.region != '')
+        resultGrouped = resultGrouped.filter(x => x.region.LIBEReg.toLowerCase().includes(filters.region.toLowerCase()));
+    if (filters.client != undefined && filters.client != '')
+        resultGrouped = resultGrouped.filter(x => x.client.NOMCli.toLowerCase().includes(filters.client.toLowerCase()));
+    return resultGrouped;
 }
 
 app.use(cors());
@@ -206,19 +218,8 @@ app.get('/api/commande/', (req, res) => {
     const filters = req.query.filters;
     const isGrouped = req.query.grouped;
     if (isGrouped == "true") {
-        let resultGrouped = COMMANDESGRP;
-
-        if (filters.vendeur != undefined && filters.vendeur != '')
-            resultGrouped = resultGrouped.filter(x => 
-                x.vendeur.NOMVend.toLowerCase().includes(filters.vendeur.toLowerCase()));
-        if (filters.region != undefined && filters.region != '')
-            resultGrouped = resultGrouped.filter(x => 
-                x.region.LIBEReg.toLowerCase().includes(filters.region.toLowerCase()));
-        if (filters.client != undefined && filters.client != '')
-            resultGrouped = resultGrouped.filter(x => 
-                x.client.NOMCli.toLowerCase().includes(filters.client.toLowerCase()));
-        
-        resultGrouped.length > 0 ? res.json(resultGrouped) : res.sendStatus(204)
+        let commandsFiltered = filterCommandsGrouped(filters);
+        commandsFiltered.length > 0 ? res.json(commandsFiltered) : res.sendStatus(204)
     } else {
         BDD.GET(req.path.split('/').at(2), filters).then(result => {
             result.length > 0 ? res.json(result) : res.sendStatus(204)

@@ -88,12 +88,6 @@ async function get(endpoint, filters) {
                     case "CLIENT":
                         query += constructJoinClient(filters);
                         break;
-                    case "VENDEUR":
-                        // No need for any join
-                        break;
-                    case "REGION":
-                        // No need for any join
-                        break; 
                 }
     
                 if (filters.vendeur && filters.vendeur != '' || filters.region && filters.region != '' 
