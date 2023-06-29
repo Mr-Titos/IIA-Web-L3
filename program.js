@@ -14,7 +14,8 @@ const endpointsNoLogin = [
     "disconnect",
     "resetpassword",
     "emailpassword",
-    "tokenpassword"
+    "tokenpassword",
+    "signup"
 ]
 let USERS = [];
 let COMMANDESGRP = [];
@@ -30,9 +31,9 @@ async function synchroBDD() {
         })
         .catch(error => console.error(error))
         .finally(() => LOGGER(`Cache updated`));
-       
+
     // Reset cache / 5 minutes
-    setTimeout(synchroBDD, 60_000 * 5);
+    setTimeout(synchroBDD, 60_000 * 5); 
 }
 
 synchroBDD();
@@ -113,9 +114,11 @@ app.post('/api/login', (req, res) => {
         isValid = false;
         msgError = "Utilisateur introuvable."
     }
-    usr.token = isValid ? TOKEN.createToken(usr) : "";
-    if (isValid)
+
+    if (isValid) {
         BDD.updateUser(usr, false);
+        usr.token = TOKEN.createToken(usr);
+    }
 
     res.statusCode = isValid ? 200 : 401;
     res.json(
@@ -123,7 +126,7 @@ app.post('/api/login', (req, res) => {
             userName : isValid ? usr.userName : "",
             email : isValid ? usr.email : "",
             grade : isValid ? usr.grade : "",
-            token : usr.token
+            token : isValid ? usr.token : ""
         },
         msgError: msgError});
 });
@@ -146,6 +149,21 @@ app.post('/api/disconnect', (req, res) => {
 app.get('/api/user/:id', (req, res) => {
     let usr = USERS.find(x => x.id == req.params.id);
     usr != null ? res.json(usr) : res.sendStatus(204);
+});
+
+app.post('/api/signup', (req, res) => {
+    const body = req.body;
+    if (!body.userName || !body.email || !body.password) {
+        res.sendStatus(400);
+    } else {
+        try {
+            BDD.createUser(body.userName, body.email, body.password);
+            BDD.synchroUser().then(usr => USERS = usr);
+            res.sendStatus(204);
+        } catch(err) {
+            res.sendStatus(400);
+        }
+    }
 });
 
 // Route PUT

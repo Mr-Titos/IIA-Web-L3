@@ -3266,3 +3266,71 @@
 29/06/2023 18:45:53 : Cache updated
 29/06/2023 18:45:55 : Requête GET commande : Arthur (1) : ::1
 29/06/2023 18:46:00 : Requête GET commande : Arthur (1) : ::1
+29/06/2023 22:12:20 : Cache updated
+29/06/2023 22:17:19 : Cache updated
+29/06/2023 22:27:39 : Serveur démarré sur le port 3001
+29/06/2023 22:27:40 : Cache updated
+29/06/2023 22:27:47 : Requête POST login  : ::1
+29/06/2023 22:30:02 : Requête GET commande : Arthur (1) : ::1
+29/06/2023 22:30:10 : Requête GET commande : Arthur (1) : ::1
+29/06/2023 22:30:15 : Requête GET commande : Arthur (1) : ::1
+29/06/2023 22:30:17 : Requête GET commande : Arthur (1) : ::1
+29/06/2023 22:30:22 : Requête GET commande : Arthur (1) : ::1
+29/06/2023 22:32:39 : Cache updated
+29/06/2023 22:35:56 : Requête GET commande : Arthur (1) : ::1
+29/06/2023 22:37:40 : Cache updated
+29/06/2023 22:42:40 : Cache updated
+29/06/2023 22:47:40 : Cache updated
+30/06/2023 00:21:26 : Serveur démarré sur le port 3001
+30/06/2023 00:21:28 : Cache updated
+30/06/2023 00:21:36 : Requête POST login  : ::1
+30/06/2023 00:22:10 : Requête POST user : Arthur (1) : ::1
+30/06/2023 00:24:09 : Requête POST user : Arthur (1) : ::1
+30/06/2023 00:25:09 : Serveur démarré sur le port 3001
+30/06/2023 00:25:10 : Cache updated
+30/06/2023 00:25:13 : Requête POST user : Arthur (1) : ::1
+30/06/2023 00:26:12 : Serveur démarré sur le port 3001
+30/06/2023 00:26:12 : Cache updated
+30/06/2023 00:26:15 : Requête POST login  : ::1
+30/06/2023 00:29:19 : Serveur démarré sur le port 3001
+30/06/2023 00:29:21 : Requête POST login  : ::1
+30/06/2023 00:29:21 : Cache updated
+30/06/2023 00:29:32 : Serveur démarré sur le port 3001
+30/06/2023 00:29:33 : Cache updated
+30/06/2023 00:29:36 : Requête POST login  : ::1
+30/06/2023 00:29:55 : Requête POST user : Arthur (1) : ::1
+30/06/2023 00:39:29 : Serveur démarré sur le port 3001
+30/06/2023 00:39:29 : Cache updated
+30/06/2023 00:39:34 : Requête POST user : Arthur (1) : ::1
+30/06/2023 00:40:03 : Serveur démarré sur le port 3001
+30/06/2023 00:40:03 : Cache updated
+30/06/2023 00:40:08 : Requête POST user : Arthur (1) : ::1
+30/06/2023 00:40:08 : Cache updated
+30/06/2023 00:40:29 : Serveur démarré sur le port 3001
+30/06/2023 00:40:29 : Cache updated
+30/06/2023 00:40:30 : Requête POST user : Arthur (1) : ::1
+30/06/2023 00:40:30 : Cache updated
+30/06/2023 00:40:45 : Serveur démarré sur le port 3001
+30/06/2023 00:40:45 : Cache updated
+30/06/2023 00:40:46 : Requête POST user : Arthur (1) : ::1
+30/06/2023 00:40:46 : Cache updated
+30/06/2023 00:41:08 : Serveur démarré sur le port 3001
+30/06/2023 00:41:09 : Cache updated
+30/06/2023 00:41:10 : Requête POST user : Arthur (1) : ::1
+30/06/2023 00:43:02 : Serveur démarré sur le port 3001
+30/06/2023 00:43:03 : Cache updated
+30/06/2023 00:43:04 : Requête POST user : Arthur (1) : ::1
+30/06/2023 00:52:22 : Serveur démarré sur le port 3001
+30/06/2023 00:52:23 : Cache updated
+30/06/2023 00:52:32 : Requête POST login  : ::1
+30/06/2023 00:52:39 : Requête POST login  : ::1
+30/06/2023 00:54:54 : Serveur démarré sur le port 3001
+30/06/2023 00:54:54 : Cache updated
+30/06/2023 00:54:56 : Requête POST signup  : ::1
+30/06/2023 00:54:56 : Cache updated
+30/06/2023 00:55:10 : Requête POST login  : ::1
+30/06/2023 00:56:41 : Serveur démarré sur le port 3001
+30/06/2023 00:56:42 : Cache updated
+30/06/2023 00:56:44 : Requête POST login  : ::1
+30/06/2023 00:57:23 : Requête POST signup  : ::1
+30/06/2023 00:57:28 : Requête POST login  : ::1

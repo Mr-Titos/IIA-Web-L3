@@ -14,7 +14,8 @@ module.exports = {
     synchroGrade : synchroGrade,
     synchroCommandsGrouped : synchroCommandsGrouped,
     GET : get,
-    updateUser : updateUser
+    updateUser : updateUser,
+    createUser : createUser
   };
 
 const sqlConfig = {
@@ -64,8 +65,7 @@ async function synchroCommandsGrouped() {
             const result = await sql.query`
             SELECT CLIECom, REGICom, VENDCom , SUM(CA) AS TotalCA
             FROM COMMANDE c
-            GROUP BY CLIECom, REGICom, VENDCom
-            HAVING COUNT(*) > 1`;
+            GROUP BY CLIECom, REGICom, VENDCom`;
             await createObjectToSend("commande", result).then(res => resolve(res));
         } catch (err) {
             reject(err);
@@ -73,54 +73,56 @@ async function synchroCommandsGrouped() {
     });
 }
 
+function createGETQuery(query, filters, endpoint) {
+// If at least 1 filter is given in the request 
+    if (filters) {
+        switch(endpoint.toUpperCase()) {
+            case "COMMANDE":
+                query += constructJoinCommande(filters);
+                break;
+            case "CLIENT":
+                query += constructJoinClient(filters);
+                break;
+        }
+
+        if (filters.vendeur && filters.vendeur != '' || filters.region && filters.region != '' 
+        || filters.client && filters.client != '' || filters.dateDebut && filters.dateDebut != '' 
+        || filters.dateFin && filters.dateFin != '') {
+            query += ' WHERE 1=1 '
+        }
+        
+        if (filters.vendeur && filters.vendeur != '') {
+            query += `AND NOMVend LIKE '%${filters.vendeur}%' `;
+        }
+        
+        if (filters.region && filters.region != '') {
+            query += `AND LIBEReg LIKE '%${filters.region}%' `;
+        }
+
+        if (filters.client && filters.client != '') {
+            query += `AND NOMCli LIKE '%${filters.client}%' `;
+        }
+
+        if (endpoint.toUpperCase() == "COMMANDE") {
+            // Greater than
+            if (filters.dateDebut && filters.dateDebut != '') {
+                query += `AND DATECom >= CONVERT(date, '${filters.dateDebut}', 120) `;
+            } 
+            // Lesser than
+            if (filters.dateFin && filters.dateFin != '') {
+                query += `AND DATECom <= CONVERT(date, '${filters.dateFin}', 120) `
+            }
+        }
+    }
+    return query;
+}
+
 async function get(endpoint, filters) {
     return new Promise(async (resolve, reject) => {
         try {
             await sql.connect(sqlConfig)
-            let query = `SELECT obj.* from dbo.[${endpoint.toUpperCase()}] obj `;
-
-            // If at least 1 filter is given in the request 
-            if (filters) {
-                switch(endpoint.toUpperCase()) {
-                    case "COMMANDE":
-                        query += constructJoinCommande(filters);
-                        break;
-                    case "CLIENT":
-                        query += constructJoinClient(filters);
-                        break;
-                }
-    
-                if (filters.vendeur && filters.vendeur != '' || filters.region && filters.region != '' 
-                || filters.client && filters.client != '' || filters.dateDebut && filters.dateDebut != '' 
-                || filters.dateFin && filters.dateFin != '') {
-                    query += ' WHERE 1=1 '
-                }
-                
-                if (filters.vendeur && filters.vendeur != '') {
-                    query += `AND NOMVend LIKE '%${filters.vendeur}%' `;
-                }
-                
-                if (filters.region && filters.region != '') {
-                    query += `AND LIBEReg LIKE '%${filters.region}%' `;
-                }
-    
-                if (filters.client && filters.client != '') {
-                    query += `AND NOMCli LIKE '%${filters.client}%' `;
-                }
-    
-                if (endpoint.toUpperCase() == "COMMANDE") {
-                    // Greater than
-                    if (filters.dateDebut && filters.dateDebut != '') {
-                        query += `AND DATECom >= CONVERT(date, '${filters.dateDebut}', 120) `;
-                    } 
-                    // Lesser than
-                    if (filters.dateFin && filters.dateFin != '') {
-                        query += `AND DATECom <= CONVERT(date, '${filters.dateFin}', 120) `
-                    }
-                }
-            }
-            
-            //console.log(query)
+            let initQuery = `SELECT obj.* from dbo.[${endpoint.toUpperCase()}] obj `;
+            const query = createGETQuery(initQuery, filters, endpoint);            
             const queryResult = await sql.query(query);
             createObjectToSend(endpoint, queryResult).then(res => resolve(res)).catch(err => reject(err));
         } catch (err) {
@@ -366,6 +368,14 @@ function updateUser(user, updatePwd) {
     ${updatePwd ? `,[PasswordUser] = '${hashedPwd}'` : ``}
     WHERE [IdUser] = '${user.id}';`
 
+    sql.query(query)
+}
+
+function createUser(userName, email, password) {
+    const hashedPwd = hashPassword(password);
+    
+    const query = `INSERT INTO [USER] (NameUser, EmailUser, PasswordUser, GradeUser)
+    VALUES ('${userName}', '${email}', '${hashedPwd}', 2);`
     sql.query(query)
 }
 
