@@ -16,8 +16,8 @@ const endpointsNoLogin = [
     "emailpassword",
     "tokenpassword"
 ]
-var USERS = [];
-var COMMANDESGRP = [];
+let USERS = [];
+let COMMANDESGRP = [];
 
 async function synchroBDD() {
     Promise.all([
@@ -43,7 +43,7 @@ function isAuth(token) {
         return tokenValid && USERS.find(x => x.token == token) != undefined;
     } catch(err) {
          // Remove token from cache/db
-         var usr = USERS.find(x => x.token == token);
+         let usr = USERS.find(x => x.token == token);
          if (usr != undefined) {
              usr.token = "";
              BDD.updateUser(usr, false).then(() => LOGGER(`USER ${usr.userName}'s token has been purged`));
@@ -66,7 +66,7 @@ app.use(express.json());
 
 // Intercepteur de requête
 app.use((req, res, next) => {
-    var token = req.headers.authorization == undefined ? "" 
+    let token = req.headers.authorization == undefined ? "" 
     : req.headers.authorization.split(' ')[1];
 
     if (!endpointsNoLogin.includes(req.path.split('/').at(2))) {
@@ -86,12 +86,12 @@ app.use((req, res, next) => {
 // Route LOGIN
 app.post('/api/login', (req, res) => {
     const body = req.body;
-    var msgError = "";
-    var pwd = body.passwordLogin != undefined ? body.passwordLogin : null;
-    var email = body.emailLogin != undefined ? body.emailLogin : null;
+    let msgError = "";
+    let pwd = body.passwordLogin != undefined ? body.passwordLogin : null;
+    let email = body.emailLogin != undefined ? body.emailLogin : null;
 
-    var isValid = true;
-    var usr = USERS.find(u => u.email == email);
+    let isValid = true;
+    let usr = USERS.find(u => u.email == email);
     if (usr != null) {
        isValid = checkPasswordUser(pwd, usr.password);
         if (!isValid) {
@@ -117,9 +117,9 @@ app.post('/api/login', (req, res) => {
 });
 
 app.post('/api/disconnect', (req, res) => {
-    var token = req.headers.authorization;
+    let token = req.headers.authorization;
     token = token != undefined ? token.split(' ')[1] : "";
-    var usr = USERS.find(x => x.token == token);
+    let usr = USERS.find(x => x.token == token);
     if (usr != undefined) {
         usr.token = "";
         BDD.updateUser(usr, false).then(() => LOGGER(`USER ${usr.userName}'s token has been purged`));
@@ -132,14 +132,14 @@ app.post('/api/disconnect', (req, res) => {
 // -----------------------------USER----------------------------
 // Route GET
 app.get('/api/user/:id', (req, res) => {
-    var usr = USERS.find(x => x.id == req.params.id);
+    let usr = USERS.find(x => x.id == req.params.id);
     usr != null ? res.json(usr) : res.sendStatus(204);
 });
 
 // Route PUT
 app.put('/api/user/', (req, res) => {
     const tokenUser = TOKEN.getDecodedToken(req.headers.authorization.split(' ')[1])
-    var user = USERS.find(x => x.id == tokenUser.id);
+    let user = USERS.find(x => x.id == tokenUser.id);
     const oldHashedPwd = user.password;
     if (checkPasswordUser(req.body.oldPwd, oldHashedPwd)) {
         const updatePwd = req.body.newPwd != undefined && req.body.newPwd != "" && req.body.newPwd != req.body.oldPwd;
@@ -160,7 +160,7 @@ app.put('/api/user/', (req, res) => {
 // ---------------------------PASSWORD----------------------------
 app.get('/api/emailpassword/', (req, res) => {
     const email = req.query.email
-    var usr = USERS.find(x => x.email == email);
+    let usr = USERS.find(x => x.email == email);
     if (usr != null) {
         MAILER.sendResetPasswordMail(usr.email, generateTokenPwd(usr));
         res.sendStatus(204)
@@ -171,14 +171,14 @@ app.get('/api/emailpassword/', (req, res) => {
 
 app.get('/api/tokenpassword/', (req, res) => {
     const tokenPwd = req.query.tokenPwd
-    var usr = USERS.find(x => x.tokenPwd == tokenPwd);
+    let usr = USERS.find(x => x.tokenPwd == tokenPwd);
     usr != null ? res.sendStatus(204) : res.sendStatus(403);
 });
 
 app.put('/api/resetpassword/', (req, res) => {
     const tokenPwd = req.body.tokenPwd;
     const newPassword = req.body.newPwd;
-    var usr = USERS.find(x => x.tokenPwd == tokenPwd);
+    let usr = USERS.find(x => x.tokenPwd == tokenPwd);
     if (usr != null && (newPassword != null && newPassword != '')) {
         usr.password = newPassword;
         usr.tokenPwd = "";
@@ -206,7 +206,7 @@ app.get('/api/commande/', (req, res) => {
     const filters = req.query.filters;
     const isGrouped = req.query.grouped;
     if (isGrouped == "true") {
-        var resultGrouped = COMMANDESGRP;
+        let resultGrouped = COMMANDESGRP;
 
         if (filters.vendeur != undefined && filters.vendeur != '')
             resultGrouped = resultGrouped.filter(x => 
@@ -224,7 +224,6 @@ app.get('/api/commande/', (req, res) => {
             result.length > 0 ? res.json(result) : res.sendStatus(204)
         }).catch(err => {
             res.status(500).json(err.message);
-            //console.error(err);
         })
     }
 });

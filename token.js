@@ -16,11 +16,7 @@ function verifyToken(token) {
     }
 
     const currentTime = Math.floor(Date.now() / 1000);
-    if (currentTime > decodedToken.iat + timeToExpire) {
-        return false;
-      } else {
-        return true;
-      }
+    return currentTime <= decodedToken.iat + timeToExpire;
 }
 
 function getDecodedToken(token) {

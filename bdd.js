@@ -36,11 +36,11 @@ const sqlConfig = {
 async function synchroUser() {
     return new Promise(async (resolve, reject) => {
         try {
-            var users = [];
+            let users = [];
             await sql.connect(sqlConfig);
             const result = await sql.query`select * from dbo.[USER]`;
             result.recordset.forEach( async usr => {
-                var newUser = new User();
+                let newUser = new User();
                 newUser.id = usr.IdUser
                 newUser.userName = usr.NameUser;
                 newUser.password = usr.PasswordUser;
@@ -189,9 +189,9 @@ function constructJoinClient(filters) {
 async function constructClients(clientsData) {
     return new Promise(async (resolve, reject) => {
         try {
-            var clients = [];
+            let clients = [];
             for (let i = 0; i < clientsData.length; i++) {
-                var newCli = new Client();
+                let newCli = new Client();
                 newCli.id= clientsData[i].IDCli
                 newCli.nom = clientsData[i].NOMCli
                 newCli.regions = await getRegionsByClient(clientsData[i].IDCli);
@@ -207,9 +207,9 @@ async function constructClients(clientsData) {
 async function constructVendeur(vendeurData) {
     return new Promise((resolve, reject) => {
         try {
-            var vendeurs = [];
+            let vendeurs = [];
             vendeurData.forEach(vend => {
-                var newVend = new Vendeur();
+                let newVend = new Vendeur();
                 newVend.id= vend.IDVend
                 newVend.nom = vend.NOMVend
                 newVend.prenom = vend.PRENVend
@@ -225,21 +225,21 @@ async function constructVendeur(vendeurData) {
 async function constructCommande(commandeData) {
     return new Promise(async (resolve, reject) => {
         try {
-            var commandes = [];
+            let commandes = [];
 
             // Get all differents ID of objects that need another request
-            var cLIEComsID = new Set();
-            var rEGIComsID = new Set();
-            var vENDComsID = new Set();
-            for(var i = 0; i < commandeData.length; i++) {
+            let cLIEComsID = new Set();
+            let rEGIComsID = new Set();
+            let vENDComsID = new Set();
+            for(let i = 0; i < commandeData.length; i++) {
                 cLIEComsID.add(commandeData[i].CLIECom);
                 rEGIComsID.add(commandeData[i].REGICom);
                 vENDComsID.add(commandeData[i].VENDCom);
             }
 
-            var rEGIComs;
-            var cLIEComs;
-            var vENDComs;
+            let rEGIComs;
+            let cLIEComs;
+            let vENDComs;
 
             if (commandeData.length > 0) {
                 rEGIComs = await getRegions(Array.from(rEGIComsID));
@@ -247,9 +247,8 @@ async function constructCommande(commandeData) {
                 vENDComs = await getVendeurs(Array.from(vENDComsID));
             }
 
-            //console.log(commandeData);
             for(let i = 0; i < commandeData.length; i++) {
-                var newCom = new Commande();
+                let newCom = new Commande();
                 newCom.id = commandeData[i].IDCom != undefined ? commandeData[i].IDCom : "N/A";
                 newCom.ca = commandeData[i].CA != undefined ? commandeData[i].CA : commandeData[i].TotalCA;
                 newCom.date = commandeData[i].DATECom != undefined ? commandeData[i].DATECom : "N/A";
@@ -269,9 +268,9 @@ async function constructCommande(commandeData) {
 async function constructRegion(regionData) {
     return new Promise((resolve, reject) => {
         try {
-            var region = [];
+            let region = [];
             for(let i = 0; i < regionData.length; i++) {
-                var newReg = new Region();
+                let newReg = new Region();
                 newReg.id = regionData[i].IDReg;
                 newReg.libe = regionData[i].LIBEReg;
                 region.push(newReg);
@@ -286,11 +285,11 @@ async function constructRegion(regionData) {
 async function synchroGrade() {
     return new Promise(async (resolve, reject) => {
         try {
-            var grades = [];
+            let grades = [];
             await sql.connect(sqlConfig)
             const result = await sql.query`select * from dbo.[GRADE]`;
             result.recordset.forEach(gra => {
-                var newGra = new Grade();
+                let newGra = new Grade();
                 newGra.id= gra.IdGrade;
                 newGra.nom = gra.LibGrade;
                 grades.push(newGra);
@@ -303,13 +302,13 @@ async function synchroGrade() {
 }
 
 async function getRegions(listIds) {
-    var stringIDs = "";
-    for(var i = 0; i < listIds.length; i++) {
+    let stringIDs = "";
+    for(let i = 0; i < listIds.length; i++) {
         stringIDs += listIds[i] + ','
     }
     stringIDs = '(' + stringIDs.substring(0, stringIDs.length - 1) + ')';
     
-    var query1 = `SELECT *
+    let query1 = `SELECT *
     FROM [IIA_WEBPROJECT].[dbo].[REGION] r
     WHERE IDReg IN ${stringIDs}`;
     const result = await sql.query(query1);
@@ -317,13 +316,13 @@ async function getRegions(listIds) {
 }
 
 async function getClients(listIds) {
-    var stringIDs = "";
-    for(var i = 0; i < listIds.length; i++) {
+    let stringIDs = "";
+    for(let i = 0; i < listIds.length; i++) {
         stringIDs += listIds[i] + ','
     }
     stringIDs = '(' + stringIDs.substring(0, stringIDs.length - 1) + ')';
     
-    var query1 = `SELECT *
+    let query1 = `SELECT *
     FROM [IIA_WEBPROJECT].[dbo].[CLIENT]
     WHERE IDCli IN ${stringIDs}`;
     const result = await sql.query(query1);
@@ -331,13 +330,13 @@ async function getClients(listIds) {
 }
 
 async function getVendeurs(listIds) {
-    var stringIDs = "";
-    for(var i = 0; i < listIds.length; i++) {
+    let stringIDs = "";
+    for(let i = 0; i < listIds.length; i++) {
         stringIDs += listIds[i] + ','
     }
     stringIDs = '(' + stringIDs.substring(0, stringIDs.length - 1) + ')';
     
-    var query1 = `SELECT *
+    let query1 = `SELECT *
     FROM [IIA_WEBPROJECT].[dbo].[VENDEUR]
     WHERE IDVend IN ${stringIDs}`;
     const result = await sql.query(query1);

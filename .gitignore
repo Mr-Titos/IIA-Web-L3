@@ -1,5 +1,6 @@
 #config
 config.js
+sonarqube*
 
 # Logs
 logs

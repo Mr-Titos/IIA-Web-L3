@@ -3192,3 +3192,10 @@
 29/06/2023 00:06:09 : Serveur démarré sur le port 3001
 29/06/2023 00:06:09 : Cache updated
 29/06/2023 00:06:11 : Requête POST login  : ::1
+29/06/2023 17:28:19 : Serveur démarré sur le port 3001
+29/06/2023 17:28:20 : Cache updated
+29/06/2023 17:29:27 : Requête POST login  : ::1
+29/06/2023 17:29:41 : Requête GET client : Arthur (1) : ::1
+29/06/2023 17:30:39 : Serveur démarré sur le port 3001
+29/06/2023 17:30:40 : Cache updated
+29/06/2023 17:30:43 : Requête GET client : Arthur (1) : ::1
