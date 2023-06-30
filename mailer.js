@@ -5,6 +5,7 @@ const {userMail, passwordMail} = require('./config.js')
 
 
 const transporter = nodemailer.createTransport({
+    secure: true,
     service: 'gmail',
     auth: {
       user: userMail,

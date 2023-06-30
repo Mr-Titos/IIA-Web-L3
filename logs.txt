@@ -3334,3 +3334,12 @@
 30/06/2023 00:56:44 : Requête POST login  : ::1
 30/06/2023 00:57:23 : Requête POST signup  : ::1
 30/06/2023 00:57:28 : Requête POST login  : ::1
+30/06/2023 09:09:46 : Serveur démarré sur le port 3001
+30/06/2023 09:09:47 : Cache updated
+30/06/2023 09:09:54 : Requête GET emailpassword  : ::1
+30/06/2023 09:09:56 : E-mail of reset pwd sent :250 2.0.0 OK  1688108996 hn8-20020a05600ca38800b003fa722e8b48sm21318370wmb.32 - gsmtp
+30/06/2023 09:09:58 : Requête GET tokenpassword  : ::1
+30/06/2023 09:17:44 : Serveur démarré sur le port 3001
+30/06/2023 09:17:45 : Cache updated
+30/06/2023 09:18:11 : Requête POST login  : ::1
+30/06/2023 09:18:32 : Requête GET client : Test (5) : ::1

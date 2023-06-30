@@ -2,12 +2,15 @@ const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 
-const {serverPort} = require('./config.js');
+const {serverPort, app} = require('./config.js');
 const BDD = require('./bdd.js');
 const TOKEN = require('./token.js');
 const LOGGER = require('./logger.js');
 const MAILER = require('./mailer.js');
-const app = express();
+
+const corsOptions = {
+    origin: '127.0.0.1' // Compliant
+};
 
 const endpointsNoLogin = [
     "login",
@@ -74,7 +77,7 @@ function filterCommandsGrouped(filters) {
     return resultGrouped;
 }
 
-app.use(cors());
+app.use(cors(corsOptions));
 app.use(express.json());
 
 // Intercepteur de requête
